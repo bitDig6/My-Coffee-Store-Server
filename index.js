@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 
 //middlewares
@@ -10,10 +10,6 @@ app.use(express.json());
 app.use(cors());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.jpi5bfv.mongodb.net/?appName=Cluster0`;
-
-//checking uri
-// console.log(uri);
-
 
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -32,17 +28,65 @@ async function run() {
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
+
+    //create database and db collection for your coffee store
+    const database = client.db("CoffeeStoreDB");
+    const coffeeCollection  = database.collection("coffee");
+
+    app.get('/coffee', async(req, res) => {
+      const cursor = coffeeCollection.find();
+      const result =  await cursor.toArray();
+      res.send(result);
+    })
+
+    app.get('/coffee/:id', async(req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)};
+      const result = await coffeeCollection.findOne(query);
+      res.send(result);
+    })
+
+    app.post('/coffee', async(req, res) => {
+        const newCoffee = req.body;
+        console.log(newCoffee);
+        const result = await coffeeCollection.insertOne(newCoffee);
+        res.send(result);
+    })
+
+    app.delete('/coffee/:id', async(req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await coffeeCollection.deleteOne();
+      res.send(result);
+    })
+
+    app.put('/coffee/:id', async(req, res) => {
+      const id = req.params.id;
+      const newCoffee = req.body;
+      const filter = { _id: new ObjectId(id)};
+      const options = {upsert: true};
+      const query = {
+        $set: {
+          name: newCoffee.name,
+          quantity: newCoffee.quantity,
+          supplier: newCoffee.supplier,
+          taste: newCoffee.taste,
+          photo: newCoffee.photo,
+          category: newCoffee.category,
+          details: newCoffee.details
+        }
+      }
+
+      const result = await coffeeCollection.updateOne(filter, query, options);
+      res.send(result);
+    })
+
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
   }
 }
 run().catch(console.dir);
-
-
-
-
-
 
 app.get('/', (req, res) => {
     res.send('Coffee Store Server is Running');
